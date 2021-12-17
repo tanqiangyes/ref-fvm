@@ -29,7 +29,8 @@ default-members = [
 
 [patch.crates-io]
 multihash = { git = "https://github.com/multiformats/rust-multihash", branch = "next" }
-cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
+#cid = { git = "https://github.com/multiformats/rust-cid", branch = "next" }
+cid = { git = "https://github.com/multiformats/rust-cid", branch = "serde-as-bytes" }
 ipld_hamt = { path = "./ipld/hamt" }
 ipld_amt = { path = "./ipld/amt" }
 fvm_shared = { path = "./shared" }
