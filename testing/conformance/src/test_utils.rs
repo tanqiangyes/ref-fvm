@@ -18,7 +18,7 @@ lazy_static! {
         // currently empty.
     ];
     /// The maximum parallelism when processing test vectors.
-    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
+    pub static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
         .map(|s| {
             let s = s.to_str().unwrap();
             s.parse().expect("parallelism must be an integer")

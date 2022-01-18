@@ -1,36 +1,28 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{fmt, iter};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow};
 use async_std::{stream, sync, task};
-use cid::Cid;
 use colored::*;
 use conformance_tests::test_utils::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
-use fmt::Display;
 use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
-use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
-use fvm::kernel::Context;
+use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm::machine::Machine;
-use fvm::state_tree::StateTree;
 use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 #[async_std::test]
 async fn conformance_test_runner() -> anyhow::Result<()> {
