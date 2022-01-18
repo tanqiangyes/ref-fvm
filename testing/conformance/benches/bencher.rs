@@ -13,7 +13,6 @@ use async_std::sync;
 use conformance_tests::vector::{MessageVector, Selector, TestVector};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
-use futures::StreamExt;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm_shared::address::Protocol;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
@@ -24,7 +23,7 @@ fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecut
     // Apply all messages in the vector.
     for (i, (msg, raw_length)) in messages.drain(..).enumerate() {
         // Execute the message.
-        let ret = match exec.execute_message(*msg, ApplyKind::Explicit, raw_length) {
+        let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => break,
         };
@@ -39,7 +38,7 @@ fn bench(c: &mut Criterion) {
     let path = Path::new(vector_name).to_path_buf();
     let file = File::open(&path).unwrap();
     let reader = BufReader::new(file);
-    let vector: MessageVector = serde_json::from_reader(reader).unwrap();
+    let vector: TestVector = serde_json::from_reader(reader).unwrap();
 
     if let TestVector::Message(vector) = vector {
         let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
@@ -69,7 +68,7 @@ fn bench(c: &mut Criterion) {
                                              let messages = v.apply_messages.iter().map(|m| {
                                                  let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
                                                  let mut raw_length = m.bytes.len();
-                                                 if m.from.protocol() == Protocol::Secp256k1 {
+                                                 if unmarshalled.from.protocol() == Protocol::Secp256k1 {
                                                      // 65 bytes signature + 1 byte type + 3 bytes for field info.
                                                      raw_length += SECP_SIG_LEN + 4;
                                                  }
