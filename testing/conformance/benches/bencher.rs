@@ -10,7 +10,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use async_std::sync;
-use conformance_tests::vector::{Selector, TestVector};
+use conformance_tests::vector::{MessageVector, Selector, TestVector};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
 use futures::StreamExt;
@@ -22,7 +22,7 @@ use fvm_shared::message::Message;
 
 fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecutor<TestKernel>) {
     // Apply all messages in the vector.
-    for (i, msg) in messages.drain(..).enumerate() {
+    for (i, (msg, raw_length)) in messages.drain(..).enumerate() {
         // Execute the message.
         let ret = match exec.execute_message(*msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
@@ -31,56 +31,58 @@ fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecut
     }
 }
 
-
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("conformance-tests");
 
     // TODO: this goes in a loop of benchmarks to run in the group!
     let vector_name = "test-vectors/corpus/specs_actors_v6/TestCronCatchedCCExpirationsAtDeadlineBoundary/c70afe9fa5e05990cac8ab8d4e49522919ad29e5be3f81ee4b59752c36c4a701-t0100-t0102-storageminer-6.json";
     let path = Path::new(vector_name).to_path_buf();
-    let file = File::open(&path)?;
+    let file = File::open(&path).unwrap();
     let reader = BufReader::new(file);
-    let vector: TestVector = serde_json::from_reader(reader)?;
+    let vector: MessageVector = serde_json::from_reader(reader).unwrap();
 
-    let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
-    if skip {
-        // selector not supported idk what this means
-        return;
+    if let TestVector::Message(vector) = vector {
+        let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
+        if skip {
+            // selector not supported idk what this means
+            return;
+        }
+
+        let (bs, imported_root) = async { vector.seed_blockstore().await? };
+
+        let v = sync::Arc::new(vector);
+
+        // TODO: become another iterator over variants woo woo
+        let variant_num = 0;
+        let variant = v.preconditions.variants[variant_num].clone();
+        let name = format!("{} | {}", path.display(), variant.id);
+
+        group.bench_function(name,
+                             move |b| {
+                                 b.to_async(AsyncStdExecutor)
+                                     .iter_batched_ref(
+                                         || {
+                                             let v = v.clone();
+                                             let bs = bs.clone();
+                                             let machine = TestMachine::new_for_vector(v, variant, bs);
+                                             let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
+                                             let messages = v.apply_messages.iter().map(|m| {
+                                                 let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
+                                                 let mut raw_length = m.bytes.len();
+                                                 if m.from.protocol() == Protocol::Secp256k1 {
+                                                     // 65 bytes signature + 1 byte type + 3 bytes for field info.
+                                                     raw_length += SECP_SIG_LEN + 4;
+                                                 }
+                                                 (unmarshalled, raw_length)
+                                             });
+                                             (messages, exec)
+                                         },
+                                         || async move { |(messages, exec)| async move { apply_messages(messages, exec).await }},
+                                         BatchSize::LargeInput,
+                                     )
+                             });
     }
 
-    let (bs, imported_root) = async { vector.seed_blockstore().await? };
-
-    let v = sync::Arc::new(vector);
-
-    // TODO: become another iterator over variants woo woo
-    let variant_num = 0;
-    let variant = v.preconditions.variants[variant_num];
-    let name = format!("{} | {}", path.display(), variant.id);
-
-    group.bench_function(name,
-                         move |b| {
-                             b.to_async(AsyncStdExecutor)
-                                 .iter_batched_ref(
-                                     || {
-                                         let v = v.clone();
-                                         let bs = bs.clone();
-                                         let machine = TestMachine::new_for_vector(*v, variant, bs);
-                                         let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
-                                         let messages = v.apply_messages.iter().map(|m| {
-                                             let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
-                                             let mut raw_length = m.bytes.len();
-                                             if msg.from.protocol() == Protocol::Secp256k1 {
-                                                 // 65 bytes signature + 1 byte type + 3 bytes for field info.
-                                                 raw_length += SECP_SIG_LEN + 4;
-                                             }
-                                             (unmarshalled, raw_length)
-                                         });
-                                         (messages, exec)
-                                     },
-                                     || async move { |(messages, exec)| async move { apply_messages(messages, exec).await }},
-                                     BatchSize::LargeInput,
-                                 )
-                         });
     group.finish();
 }
 
