@@ -30,18 +30,9 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use walkdir::{DirEntry, WalkDir};
+use test_utils::*;
 
-lazy_static! {
-    static ref SKIP_TESTS: Vec<Regex> = vec![
-        // currently empty.
-    ];
-    /// The maximum parallelism when processing test vectors.
-    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
-        .map(|s| {
-            let s = s.to_str().unwrap();
-            s.parse().expect("parallelism must be an integer")
-        }).unwrap_or_else(num_cpus::get);
-}
+
 
 #[async_std::test]
 async fn conformance_test_runner() -> anyhow::Result<()> {
@@ -54,7 +45,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                 let res = run_vector(path.clone()).await?;
                 anyhow::Ok((path, res))
             })
-            .map(futures::future::Either::Left),
+                .map(futures::future::Either::Left),
         ),
         Err(_) => either::Either::Right(
             WalkDir::new("test-vectors/corpus")
@@ -82,7 +73,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
                         Ok(async move { anyhow::Ok((path, job.await?)) })
                     }))
                 }
-                .try_flatten_stream()
+                    .try_flatten_stream()
             })
             .flatten()
             .try_buffer_unordered(*TEST_VECTOR_PARALLELISM),
@@ -128,7 +119,7 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
             failed + succeeded,
             skipped,
         )
-        .bold()
+            .bold()
     );
 
     if failed > 0 {
@@ -136,16 +127,6 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     } else {
         Ok(())
     }
-}
-
-/// Represents the result from running a vector.
-enum VariantResult {
-    /// The vector succeeded.
-    Ok { id: String },
-    /// A variant was skipped, due to the specified reason.
-    Skipped { reason: String, id: String },
-    /// A variant failed, due to the specified error.
-    Failed { reason: anyhow::Error, id: String },
 }
 
 /// Runs a single test vector and returns a list of VectorResults,
@@ -197,12 +178,12 @@ async fn run_vector(
                         let name =
                             format!("{} | {}", path.display(), &v.preconditions.variants[i].id);
                         futures::future::Either::Right(
-                                task::Builder::new()
-                                    .name(name)
-                                    .spawn(async move {
-                                        run_variant(bs, &v, &v.preconditions.variants[i])
-                                    }).unwrap(),
-                            )
+                            task::Builder::new()
+                                .name(name)
+                                .spawn(async move {
+                                    run_variant(bs, &v, &v.preconditions.variants[i])
+                                }).unwrap(),
+                        )
                     }),
                 ))
             }
