@@ -4,44 +4,28 @@
 extern crate criterion;
 
 // TODO support skipping
-use std::collections::{HashMap, HashSet};
-use std::env::var;
+use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
-use std::time::Instant;
-use std::{fmt, iter};
+use std::path::Path;
 
-use anyhow::{anyhow, Result};
-use async_std::{stream, sync, task};
-use cid::Cid;
-use colored::*;
+use async_std::sync;
 use conformance_tests::test_utils::*;
-use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
+use conformance_tests::vector::{Selector, TestVector};
 use conformance_tests::vm::{TestKernel, TestMachine};
-use criterion::{black_box, *};
-use fmt::Display;
-use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
-use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
-use fvm::kernel::Context;
-use fvm::machine::Machine;
-use fvm::state_tree::StateTree;
+use criterion::*;
+use futures::StreamExt;
+use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
 use fvm_shared::address::Protocol;
-use fvm_shared::blockstore::MemoryBlockstore;
 use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
-use fvm_shared::receipt::Receipt;
-use itertools::Itertools;
-use lazy_static::lazy_static;
-use regex::Regex;
-use walkdir::{DirEntry, WalkDir};
 
 fn apply_messages(messages: &mut Vec<Message>, exec: &mut DefaultExecutor<TestKernel>) {
     // Apply all messages in the vector.
     for (i, msg) in messages.drain(..).enumerate() {
         // Execute the message.
-        let mut raw_length = m.bytes.len();
+        let mut raw_length = msg.bytes.len();
         if msg.from.protocol() == Protocol::Secp256k1 {
             // 65 bytes signature + 1 byte type + 3 bytes for field info.
             raw_length += SECP_SIG_LEN + 4;
@@ -72,9 +56,9 @@ fn bench(c: &mut Criterion) {
         return;
     }
 
-    let (bs, imported_root) = v.seed_blockstore().await?;
+    let (bs, imported_root) = async { vector.seed_blockstore().await? };
 
-    let v = sync::Arc::new(v);
+    let v = sync::Arc::new(vector);
 
     // TODO: become another iterator over variants woo woo
     let variant_num = 0;

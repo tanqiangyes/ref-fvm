@@ -4,10 +4,10 @@
 use std::env::var;
 use std::fs::File;
 use std::io::BufReader;
+use std::iter;
 use std::path::{Path, PathBuf};
-use std::{fmt, iter};
 
-use anyhow::{anyhow};
+use anyhow::anyhow;
 use async_std::{stream, sync, task};
 use colored::*;
 use conformance_tests::test_utils::*;
