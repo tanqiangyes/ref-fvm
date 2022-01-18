@@ -12,6 +12,7 @@ use anyhow::{anyhow, Result};
 use async_std::{stream, sync, task};
 use cid::Cid;
 use colored::*;
+use conformance_tests::test_utils::*;
 use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
@@ -30,18 +31,6 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use walkdir::{DirEntry, WalkDir};
-
-lazy_static! {
-    static ref SKIP_TESTS: Vec<Regex> = vec![
-        // currently empty.
-    ];
-    /// The maximum parallelism when processing test vectors.
-    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
-        .map(|s| {
-            let s = s.to_str().unwrap();
-            s.parse().expect("parallelism must be an integer")
-        }).unwrap_or_else(num_cpus::get);
-}
 
 #[async_std::test]
 async fn conformance_test_runner() -> anyhow::Result<()> {
@@ -136,16 +125,6 @@ async fn conformance_test_runner() -> anyhow::Result<()> {
     } else {
         Ok(())
     }
-}
-
-/// Represents the result from running a vector.
-enum VariantResult {
-    /// The vector succeeded.
-    Ok { id: String },
-    /// A variant was skipped, due to the specified reason.
-    Skipped { reason: String, id: String },
-    /// A variant failed, due to the specified error.
-    Failed { reason: anyhow::Error, id: String },
 }
 
 /// Runs a single test vector and returns a list of VectorResults,

@@ -1,32 +1,29 @@
 use std::collections::{HashMap, HashSet};
-use std::env::var;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
-use std::{fmt, iter};
+use std::fmt;
 
 use anyhow::{anyhow, Result};
-use async_std::{stream, sync, task};
 use cid::Cid;
-use colored::*;
-use conformance_tests::vector::{MessageVector, Selector, TestVector, Variant};
-use conformance_tests::vm::{TestKernel, TestMachine};
 use fmt::Display;
-use futures::{Future, StreamExt, TryFutureExt, TryStreamExt};
-use fvm::executor::{ApplyKind, ApplyRet, DefaultExecutor, Executor};
+use fvm::executor::ApplyRet;
 use fvm::kernel::Context;
-use fvm::machine::Machine;
 use fvm::state_tree::StateTree;
-use fvm_shared::address::Protocol;
 use fvm_shared::blockstore::MemoryBlockstore;
-use fvm_shared::crypto::signature::SECP_SIG_LEN;
-use fvm_shared::encoding::Cbor;
-use fvm_shared::message::Message;
 use fvm_shared::receipt::Receipt;
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use walkdir::{DirEntry, WalkDir};
+use walkdir::DirEntry;
+
+lazy_static! {
+    static ref SKIP_TESTS: Vec<Regex> = vec![
+        // currently empty.
+    ];
+    /// The maximum parallelism when processing test vectors.
+    static ref TEST_VECTOR_PARALLELISM: usize = std::env::var_os("TEST_VECTOR_PARALLELISM")
+        .map(|s| {
+            let s = s.to_str().unwrap();
+            s.parse().expect("parallelism must be an integer")
+        }).unwrap_or_else(num_cpus::get);
+}
 
 /// Checks if the file is a runnable vector.
 pub fn is_runnable(entry: &DirEntry) -> bool {
