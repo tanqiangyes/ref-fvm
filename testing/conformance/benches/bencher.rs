@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 #[macro_use]
 extern crate criterion;
+use criterion::async_executor::AsyncStdExecutor;
 
 // TODO support skipping
-use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
 use async_std::sync;
-use conformance_tests::test_utils::*;
 use conformance_tests::vector::{Selector, TestVector};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
@@ -21,15 +20,10 @@ use fvm_shared::crypto::signature::SECP_SIG_LEN;
 use fvm_shared::encoding::Cbor;
 use fvm_shared::message::Message;
 
-fn apply_messages(messages: &mut Vec<Message>, exec: &mut DefaultExecutor<TestKernel>) {
+fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecutor<TestKernel>) {
     // Apply all messages in the vector.
     for (i, msg) in messages.drain(..).enumerate() {
         // Execute the message.
-        let mut raw_length = msg.bytes.len();
-        if msg.from.protocol() == Protocol::Secp256k1 {
-            // 65 bytes signature + 1 byte type + 3 bytes for field info.
-            raw_length += SECP_SIG_LEN + 4;
-        }
         let ret = match exec.execute_message(*msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => break,
@@ -37,8 +31,6 @@ fn apply_messages(messages: &mut Vec<Message>, exec: &mut DefaultExecutor<TestKe
     }
 }
 
-// This is a struct that tells Criterion.rs to use the "futures" crate's current-thread executor
-use criterion::async_executor::FuturesExecutor;
 
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("conformance-tests");
@@ -67,18 +59,25 @@ fn bench(c: &mut Criterion) {
 
     group.bench_function(name,
                          move |b| {
-                             b.to_async(FuturesExecutor)
+                             b.to_async(AsyncStdExecutor)
                                  .iter_batched_ref(
                                      || {
                                          let v = v.clone();
                                          let bs = bs.clone();
-                                         let machine = TestMachine::new_for_vector(&v, variant, bs);
+                                         let machine = TestMachine::new_for_vector(*v, variant, bs);
                                          let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
-                                         let messages = v.apply_messages.iter().map(|m| Message::unmarshal_cbor(&m.bytes).unwrap());
+                                         let messages = v.apply_messages.iter().map(|m| {
+                                             let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
+                                             let mut raw_length = m.bytes.len();
+                                             if msg.from.protocol() == Protocol::Secp256k1 {
+                                                 // 65 bytes signature + 1 byte type + 3 bytes for field info.
+                                                 raw_length += SECP_SIG_LEN + 4;
+                                             }
+                                             (unmarshalled, raw_length)
+                                         });
                                          (messages, exec)
-                                     }
-
-                                     || async { |(messages, exec)| apply_messages(messages, exec).await },
+                                     },
+                                     || async move { |(messages, exec)| async move { apply_messages(messages, exec).await }},
                                      BatchSize::LargeInput,
                                  )
                          });
