@@ -10,7 +10,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use async_std::sync;
-use conformance_tests::vector::{MessageVector, Selector, TestVector};
+use conformance_tests::vector::{Selector, TestVector};
 use conformance_tests::vm::{TestKernel, TestMachine};
 use criterion::*;
 use fvm::executor::{ApplyKind, DefaultExecutor, Executor};
@@ -47,7 +47,7 @@ fn bench(c: &mut Criterion) {
             return;
         }
 
-        let (bs, imported_root) = async { vector.seed_blockstore().await? };
+        let (bs, imported_root) = block_on(vector.seed_blockstore());
 
         let v = sync::Arc::new(vector);
 
@@ -76,7 +76,7 @@ fn bench(c: &mut Criterion) {
                                              });
                                              (messages, exec)
                                          },
-                                         || async move { |(messages, exec)| async move { apply_messages(messages, exec).await }},
+                                         |(messages, exec)| apply_messages(messages, exec).await,
                                          BatchSize::LargeInput,
                                      )
                              });
