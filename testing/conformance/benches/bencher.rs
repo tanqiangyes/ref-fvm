@@ -1,6 +1,6 @@
 // Copyright 2019-2022 ChainSafe Systems
 // SPDX-License-Identifier: Apache-2.0, MIT
-#[macro_use]
+//#[macro_use]
 extern crate criterion;
 use criterion::async_executor::AsyncStdExecutor;
 
@@ -63,7 +63,7 @@ fn bench(c: &mut Criterion) {
                                          || {
                                              let v = v.clone();
                                              let bs = bs.clone();
-                                             let machine = TestMachine::new_for_vector(v.as_ref(), variant, bs);
+                                             let machine = TestMachine::new_for_vector(v.as_ref(), &variant, bs);
                                              let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                                              let messages = v.apply_messages.iter().map(|m| {
                                                  let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
