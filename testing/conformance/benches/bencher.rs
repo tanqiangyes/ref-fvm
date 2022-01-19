@@ -78,7 +78,7 @@ fn bench(c: &mut Criterion) {
                                              }).collect();
                                              (messages, exec)
                                          },
-                                         move |(messages, exec)| async {apply_messages(messages, exec)},
+                                         |(messages, exec)| async move {apply_messages(messages, exec)},
                                          BatchSize::LargeInput,
                                      )
                              });
