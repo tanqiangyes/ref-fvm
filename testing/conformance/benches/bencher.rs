@@ -21,12 +21,12 @@ use fvm_shared::message::Message;
 
 fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecutor<TestKernel>) {
     // Apply all messages in the vector.
-    for (i, (msg, raw_length)) in messages.drain(..).enumerate() {
+    for (msg, raw_length) in messages.drain(..) {
         // Execute the message.
-        let ret = match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
+        match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
             Ok(ret) => ret,
             Err(e) => break,
-        };
+        }
     }
 }
 
@@ -40,7 +40,7 @@ fn bench(c: &mut Criterion) {
     let reader = BufReader::new(file);
     let vector: TestVector = serde_json::from_reader(reader).unwrap();
 
-    if let TestVector::Message(vector) = vector {
+    let TestVector::Message(vector) = vector ;
         let skip = !vector.selector.as_ref().map_or(true, Selector::supported);
         if skip {
             // selector not supported idk what this means
@@ -80,7 +80,7 @@ fn bench(c: &mut Criterion) {
                                          BatchSize::LargeInput,
                                      )
                              });
-    }
+
 
     group.finish();
 }
