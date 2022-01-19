@@ -25,8 +25,8 @@ fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecut
         // Execute the message.
         // TODO real error handling
         match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
-            Ok(ret) => (),
-            Err(e) => break,
+            Ok(_ret) => (),
+            Err(_e) => break,
         }
     }
 }
@@ -48,7 +48,8 @@ fn bench(c: &mut Criterion) {
             return;
         }
 
-        let (bs, imported_root) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
+        // TODO should i check the roots?
+        let (bs, _imported_root) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
 
         let v = sync::Arc::new(vector);
 
