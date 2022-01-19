@@ -53,7 +53,7 @@ fn bench(c: &mut Criterion) {
 
         // TODO: become another iterator over variants woo woo
         let variant_num = 0;
-        let variant = v.preconditions.variants[variant_num].copy();
+        let variant = v.preconditions.variants[variant_num];
         let name = format!("{} | {}", path.display(), variant.id);
 
         group.bench_function(name,
