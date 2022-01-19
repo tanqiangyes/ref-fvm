@@ -23,8 +23,9 @@ fn apply_messages(messages: &mut Vec<(Message, usize)>, exec: &mut DefaultExecut
     // Apply all messages in the vector.
     for (msg, raw_length) in messages.drain(..) {
         // Execute the message.
+        // TODO real error handling
         match exec.execute_message(msg, ApplyKind::Explicit, raw_length) {
-            Ok(ret) => ret,
+            Ok(ret) => (),
             Err(e) => break,
         }
     }
