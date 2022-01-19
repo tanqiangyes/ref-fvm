@@ -47,13 +47,13 @@ fn bench(c: &mut Criterion) {
             return;
         }
 
-        let (bs, imported_root) = async_std::task::block_on(vector.seed_blockstore());
+        let (bs, imported_root) = async_std::task::block_on(vector.seed_blockstore()).unwrap();
 
         let v = sync::Arc::new(vector);
 
         // TODO: become another iterator over variants woo woo
         let variant_num = 0;
-        let variant = v.preconditions.variants[variant_num].clone();
+        let variant = v.preconditions.variants[variant_num].copy();
         let name = format!("{} | {}", path.display(), variant.id);
 
         group.bench_function(name,
@@ -76,7 +76,7 @@ fn bench(c: &mut Criterion) {
                                              }).collect();
                                              (messages, exec)
                                          },
-                                         |(messages, exec)| async {apply_messages(messages, exec).await},
+                                         |(messages, exec)| async {apply_messages(messages, exec)},
                                          BatchSize::LargeInput,
                                      )
                              });
