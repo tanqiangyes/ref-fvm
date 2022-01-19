@@ -47,7 +47,7 @@ fn bench(c: &mut Criterion) {
             return;
         }
 
-        let (bs, imported_root) = block_on(vector.seed_blockstore());
+        let (bs, imported_root) = async_std::task::block_on(vector.seed_blockstore());
 
         let v = sync::Arc::new(vector);
 
@@ -63,7 +63,7 @@ fn bench(c: &mut Criterion) {
                                          || {
                                              let v = v.clone();
                                              let bs = bs.clone();
-                                             let machine = TestMachine::new_for_vector(v, variant, bs);
+                                             let machine = TestMachine::new_for_vector(v.as_ref(), variant, bs);
                                              let mut exec: DefaultExecutor<TestKernel> = DefaultExecutor::new(machine);
                                              let messages = v.apply_messages.iter().map(|m| {
                                                  let unmarshalled = Message::unmarshal_cbor(&m.bytes).unwrap();
@@ -73,10 +73,10 @@ fn bench(c: &mut Criterion) {
                                                      raw_length += SECP_SIG_LEN + 4;
                                                  }
                                                  (unmarshalled, raw_length)
-                                             });
+                                             }).collect();
                                              (messages, exec)
                                          },
-                                         |(messages, exec)| apply_messages(messages, exec).await,
+                                         |(messages, exec)| async {apply_messages(messages, exec).await},
                                          BatchSize::LargeInput,
                                      )
                              });
